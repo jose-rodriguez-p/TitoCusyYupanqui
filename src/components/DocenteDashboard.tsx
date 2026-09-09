@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../supabaseClient';
 import { PerfilUsuario, MetricaMinijuego, EvaluacionDocente } from '../types';
-import { LogOut, Users, BarChart3, ClipboardEdit, FileSpreadsheet, Plus, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { LogOut, Users, BarChart3, ClipboardEdit, FileSpreadsheet, Plus, AlertCircle, CheckCircle2, Settings, Shield, Clock, Target, Trophy } from 'lucide-react';
 
 interface DocenteDashboardProps {
   profile: PerfilUsuario;
@@ -13,7 +13,8 @@ export const DocenteDashboard: React.FC<DocenteDashboardProps> = ({ profile, onL
   const [metrics, setMetrics] = useState<MetricaMinijuego[]>([]);
   const [evaluations, setEvaluations] = useState<EvaluacionDocente[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'students' | 'evaluations' | 'metrics'>('students');
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'students' | 'evaluations' | 'metrics' | 'config'>('students');
 
   // Estado para registrar nueva evaluación
   const [selectedStudentId, setSelectedStudentId] = useState('');
@@ -32,15 +33,25 @@ export const DocenteDashboard: React.FC<DocenteDashboardProps> = ({ profile, onL
   const loadData = async () => {
     try {
       setLoading(true);
+      setError(null);
+      console.log('Cargando datos para profesor:', profile.id);
+      
+      // Cargar todos los estudiantes temporalmente
       const stds = await db.getAllStudents();
+      console.log('Estudiantes cargados:', stds.length);
+      
       const mtrc = await db.getAllMetricsForDocente();
+      console.log('Métricas cargadas:', mtrc.length);
+      
       const evls = await db.getAllEvaluationsForDocente();
+      console.log('Evaluaciones cargadas:', evls.length);
       
       setStudents(stds);
       setMetrics(mtrc);
       setEvaluations(evls);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error cargando datos de docentes:', err);
+      setError(err.message || 'Error desconocido al cargar datos');
     } finally {
       setLoading(false);
     }
@@ -168,6 +179,24 @@ export const DocenteDashboard: React.FC<DocenteDashboardProps> = ({ profile, onL
     );
   }
 
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center space-grid text-white">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-brand-red mx-auto mb-4" />
+          <p className="text-lg font-bold text-brand-red mb-2">Error al cargar datos</p>
+          <p className="text-sm text-gray-400">{error}</p>
+          <button 
+            onClick={loadData}
+            className="mt-4 px-4 py-2 bg-brand-violet hover:bg-brand-cyan text-white rounded-lg"
+          >
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen space-grid text-white p-4 md:p-8">
       {/* Header */}
@@ -192,6 +221,49 @@ export const DocenteDashboard: React.FC<DocenteDashboardProps> = ({ profile, onL
 
       <main className="max-w-6xl mx-auto space-y-6">
         
+        {/* Estadísticas Generales del Profesor */}
+        <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="glass-panel p-4 rounded-2xl border border-brand-violet/20 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-brand-cyan/10 flex items-center justify-center text-brand-cyan border border-brand-cyan/30 flex-shrink-0">
+              <Users className="w-6 h-6" />
+            </div>
+            <div>
+              <span className="text-xs text-gray-400 font-bold uppercase">Alumnos Asignados</span>
+              <p className="text-2xl font-black text-white">{students.length}</p>
+            </div>
+          </div>
+          
+          <div className="glass-panel p-4 rounded-2xl border border-brand-violet/20 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-brand-green/10 flex items-center justify-center text-brand-green border border-brand-green/30 flex-shrink-0">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <div>
+              <span className="text-xs text-gray-400 font-bold uppercase">Sesiones Completadas</span>
+              <p className="text-2xl font-black text-white">{metrics.length}</p>
+            </div>
+          </div>
+
+          <div className="glass-panel p-4 rounded-2xl border border-brand-violet/20 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-brand-violet/10 flex items-center justify-center text-brand-violet border border-brand-violet/30 flex-shrink-0">
+              <ClipboardEdit className="w-6 h-6" />
+            </div>
+            <div>
+              <span className="text-xs text-gray-400 font-bold uppercase">Evaluaciones</span>
+              <p className="text-2xl font-black text-white">{evaluations.length}</p>
+            </div>
+          </div>
+
+          <div className="glass-panel p-4 rounded-2xl border border-brand-violet/20 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-brand-yellow/10 flex items-center justify-center text-brand-yellow border border-brand-yellow/30 flex-shrink-0">
+              <Trophy className="w-6 h-6" />
+            </div>
+            <div>
+              <span className="text-xs text-gray-400 font-bold uppercase">XP Total Alumnos</span>
+              <p className="text-2xl font-black text-white">{students.reduce((sum, s) => sum + s.xp, 0)}</p>
+            </div>
+          </div>
+        </section>
+
         {/* Barra de Herramientas Docente */}
         <section className="flex flex-col md:flex-row justify-between gap-4 bg-bg-space/70 p-4 rounded-2xl border border-brand-violet/20">
           {/* Navegación Tabs */}
@@ -229,6 +301,17 @@ export const DocenteDashboard: React.FC<DocenteDashboardProps> = ({ profile, onL
               <BarChart3 className="w-4.5 h-4.5" />
               Historial de Métricas ({metrics.length})
             </button>
+            <button
+              onClick={() => setActiveTab('config')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
+                activeTab === 'config'
+                  ? 'bg-brand-violet text-white glow-violet'
+                  : 'text-gray-400 hover:text-white hover:bg-bg-space'
+              }`}
+            >
+              <Settings className="w-4.5 h-4.5" />
+              Configuración
+            </button>
           </div>
 
           {/* Exportación CSV */}
@@ -262,13 +345,24 @@ export const DocenteDashboard: React.FC<DocenteDashboardProps> = ({ profile, onL
         {/* Tab 1: Listado de Alumnos */}
         {activeTab === 'students' && (
           <section className="glass-panel p-6 rounded-2xl border border-brand-violet/20">
-            <h3 className="text-lg font-bold tracking-wider mb-4 flex items-center gap-2">
-              <Users className="w-5 h-5 text-brand-cyan" />
-              Estudiantes Registrados
-            </h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold tracking-wider flex items-center gap-2">
+                <Users className="w-5 h-5 text-brand-cyan" />
+                Estudiantes Asignados a Ti
+              </h3>
+              <button
+                onClick={loadData}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-brand-violet/10 hover:bg-brand-violet/20 text-brand-violet border border-brand-violet/30 transition-all"
+              >
+                Actualizar
+              </button>
+            </div>
             
             {students.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">No hay estudiantes registrados en la plataforma.</div>
+              <div className="text-center py-8 text-gray-500">
+                <p className="mb-2">No tienes estudiantes asignados aún.</p>
+                <p className="text-xs text-gray-400">Los estudiantes deben seleccionarte como profesor al registrarse.</p>
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
@@ -280,7 +374,8 @@ export const DocenteDashboard: React.FC<DocenteDashboardProps> = ({ profile, onL
                       <th className="py-3 px-4 text-center">XP Total</th>
                       <th className="py-3 px-4 text-center">Racha</th>
                       <th className="py-3 px-4">Última Conexión</th>
-                      <th className="py-3 px-4">Evaluaciones Registradas</th>
+                      <th className="py-3 px-4">Evaluaciones</th>
+                      <th className="py-3 px-4">Progreso</th>
                     </tr>
                   </thead>
                   <tbody className="text-sm divide-y divide-brand-violet/10">
@@ -288,6 +383,9 @@ export const DocenteDashboard: React.FC<DocenteDashboardProps> = ({ profile, onL
                       const studentEvals = evaluations.filter(e => e.estudiante_id === student.id);
                       const hasPre = studentEvals.some(e => e.tipo_evaluacion === 'pre');
                       const hasPost = studentEvals.some(e => e.tipo_evaluacion === 'post');
+                      const studentMetrics = metrics.filter(m => m.usuario_id === student.id);
+                      const sessionsCompleted = studentMetrics.length;
+                      const progressPercent = Math.min(100, (sessionsCompleted / 24) * 100);
 
                       return (
                         <tr key={student.id} className="hover:bg-bg-space/45 transition-colors">
@@ -299,16 +397,27 @@ export const DocenteDashboard: React.FC<DocenteDashboardProps> = ({ profile, onL
                           <td className="py-4 px-4 text-gray-400 text-xs">
                             {student.ultimo_entrenamiento 
                               ? new Date(student.ultimo_entrenamiento).toLocaleString()
-                              : 'Sin actividad registrada'}
+                              : 'Sin actividad'}
                           </td>
                           <td className="py-4 px-4 text-xs">
                             <div className="flex gap-2">
                               <span className={`px-2 py-0.5 rounded font-bold ${hasPre ? 'bg-brand-green/10 border border-brand-green/30 text-brand-green' : 'bg-gray-800 text-gray-500'}`}>
-                                PRE-TEST
+                                PRE
                               </span>
                               <span className={`px-2 py-0.5 rounded font-bold ${hasPost ? 'bg-brand-green/10 border border-brand-green/30 text-brand-green' : 'bg-gray-800 text-gray-500'}`}>
-                                POST-TEST
+                                POST
                               </span>
+                            </div>
+                          </td>
+                          <td className="py-4 px-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-16 bg-bg-space/80 h-2 rounded-full overflow-hidden border border-brand-violet/20">
+                                <div 
+                                  className="bg-gradient-to-r from-brand-violet to-brand-cyan h-full rounded-full transition-all" 
+                                  style={{ width: `${progressPercent}%` }} 
+                                />
+                              </div>
+                              <span className="text-xs text-gray-400">{sessionsCompleted}/24</span>
                             </div>
                           </td>
                         </tr>
@@ -559,6 +668,95 @@ export const DocenteDashboard: React.FC<DocenteDashboardProps> = ({ profile, onL
               </div>
             )}
           </section>
+        )}
+
+        {/* Tab 4: Configuración del Profesor */}
+        {activeTab === 'config' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <section className="glass-panel p-6 rounded-2xl border border-brand-violet/20">
+              <h3 className="text-lg font-bold tracking-wider mb-4 flex items-center gap-2">
+                <Settings className="w-5 h-5 text-brand-cyan" />
+                Configuración de Perfil
+              </h3>
+              
+              <div className="space-y-4">
+                <div className="bg-bg-space/50 p-4 rounded-xl border border-brand-violet/20">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Shield className="w-5 h-5 text-brand-green" />
+                    <span className="text-sm font-bold text-gray-400 uppercase">Información del Profesor</span>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Nombre:</span>
+                      <span className="text-white font-semibold">{profile.pseudonimo}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Correo:</span>
+                      <span className="text-white font-semibold">{profile.correo}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">ID:</span>
+                      <span className="text-brand-cyan font-mono text-xs">{profile.id}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-bg-space/50 p-4 rounded-xl border border-brand-violet/20">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Target className="w-5 h-5 text-brand-yellow" />
+                    <span className="text-sm font-bold text-gray-400 uppercase">Estadísticas del Grupo</span>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Total Alumnos:</span>
+                      <span className="text-white font-semibold">{students.length}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Sesiones Totales:</span>
+                      <span className="text-white font-semibold">{metrics.length}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">XP Promedio:</span>
+                      <span className="text-brand-yellow font-semibold">
+                        {students.length > 0 ? Math.round(students.reduce((sum, s) => sum + s.xp, 0) / students.length) : 0} XP
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section className="glass-panel p-6 rounded-2xl border border-brand-violet/20">
+              <h3 className="text-lg font-bold tracking-wider mb-4 flex items-center gap-2">
+                <Clock className="w-5 h-5 text-brand-violet" />
+                Actividad Reciente
+              </h3>
+              
+              {metrics.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 text-sm">No hay actividad reciente registrada.</div>
+              ) : (
+                <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                  {metrics.slice(0, 10).map((m) => {
+                    const student = students.find(s => s.id === m.usuario_id);
+                    return (
+                      <div key={m.id} className="bg-bg-space/50 p-3 rounded-xl border border-brand-violet/10">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-xs text-gray-400">{student ? student.pseudonimo : 'Desconocido'}</span>
+                            <p className="text-sm font-semibold text-white">{m.juego_nombre}</p>
+                          </div>
+                          <span className="text-xs text-brand-cyan font-bold">+{m.xp_ganado} XP</span>
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {new Date(m.created_at || '').toLocaleString()}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          </div>
         )}
 
       </main>

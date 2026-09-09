@@ -310,8 +310,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ profile, onLogout, onSelec
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {minijuegos.map((game) => {
-              // Juego 5 solo para semanas 6-8 (sesión 16 en adelante)
-              const isLocked = game.id === 5 && sessions.filter(s => s.completada).length < 15;
+              // Todos los juegos desbloqueados - incluyendo el juego de doble tarea
+              const isLocked = false;
 
               return (
                 <div

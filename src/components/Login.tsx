@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db } from '../supabaseClient';
-import { Gamepad2, Mail, Lock, User, UserCheck, AlertTriangle } from 'lucide-react';
+import { PerfilUsuario } from '../types';
+import { Gamepad2, Mail, Lock, User, UserCheck, AlertTriangle, GraduationCap } from 'lucide-react';
 
 interface LoginProps {
   onLoginSuccess: (profile: any) => void;
@@ -12,10 +13,27 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [password, setPassword] = useState('');
   const [rol, setRol] = useState<'estudiante' | 'docente'>('estudiante');
   const [nombreDocente, setNombreDocente] = useState('');
+  const [selectedDocenteId, setSelectedDocenteId] = useState('');
+  const [profesores, setProfesores] = useState<PerfilUsuario[]>([]);
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Cargar lista de profesores al montar el componente
+  useEffect(() => {
+    const loadProfesores = async () => {
+      try {
+        const teachers = await db.getAllTeachers();
+        setProfesores(teachers);
+      } catch (err) {
+        console.error('Error cargando profesores:', err);
+        // No romper la aplicación si falla la carga de profesores
+        setProfesores([]);
+      }
+    };
+    loadProfesores();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,11 +48,17 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           throw new Error('Por favor, ingresa tu nombre completo.');
         }
 
+        // Validación de selección de profesor para estudiantes
+        if (rol === 'estudiante' && !selectedDocenteId) {
+          throw new Error('Por favor, selecciona un profesor.');
+        }
+
         const { data, error: signUpError } = await db.signUp(
           email,
           password,
           rol,
-          rol === 'docente' ? nombreDocente : undefined
+          rol === 'docente' ? nombreDocente : undefined,
+          rol === 'estudiante' ? selectedDocenteId : undefined
         );
 
         if (signUpError) throw signUpError;
@@ -46,6 +70,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         );
         setIsRegister(false);
         setPassword('');
+        setSelectedDocenteId('');
       } else {
         const { data, error: signInError } = await db.signIn(email, password);
         if (signInError) throw signInError;
@@ -80,11 +105,11 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         
         {/* Cabecera / Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-brand-violet/20 border border-brand-violet/50 flex items-center justify-center glow-violet mb-3 animate-pulse-slow">
-            <Gamepad2 className="w-9 h-9 text-brand-cyan" />
-          </div>
-          <h1 className="text-3xl font-extrabold text-white tracking-wider glow-text-cyan">ODISEA MENTAL</h1>
-          <p className="text-sm text-gray-400 mt-1">Plataforma Cognitiva Gamificada (TDAH)</p>
+          {/* LOGO DEL COLEGIO - Ruta: /logo.png (carpeta public) */}
+          <img src="/logo.png" alt="Logo Colegio Tito Cusy Yupanqui" className="w-16 h-16 rounded-2xl glow-violet mb-3 animate-pulse-slow object-contain" />
+          <h1 className="text-3xl font-extrabold text-white tracking-wider glow-text-cyan">FOCUS TDH</h1>
+          <p className="text-sm text-gray-400 mt-1">Estudiantes del Colegio Tito Cusy Yupanqui - San Ignacio</p>
+          <p className="text-xs text-brand-cyan/70 mt-2">Somos estudiantes del Colegio Tito Cusy Yupanqui, ubicado en San Ignacio</p>
         </div>
 
         {/* Formulario */}
@@ -145,6 +170,34 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                   className="w-full bg-bg-space/90 border border-brand-violet/20 hover:border-brand-cyan/50 focus:border-brand-cyan focus:outline-none rounded-xl py-3 pl-11 pr-4 text-white text-sm transition-all"
                 />
               </div>
+            </div>
+          )}
+
+          {/* Selección de Profesor (Solo Registro Estudiante) */}
+          {isRegister && rol === 'estudiante' && (
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-brand-cyan tracking-wider uppercase">Seleccionar Profesor</label>
+              <div className="relative">
+                <GraduationCap className="absolute left-3.5 top-3.5 w-5 h-5 text-gray-400" />
+                <select
+                  required
+                  value={selectedDocenteId}
+                  onChange={(e) => setSelectedDocenteId(e.target.value)}
+                  className="w-full bg-bg-space/90 border border-brand-violet/20 hover:border-brand-cyan/50 focus:border-brand-cyan focus:outline-none rounded-xl py-3 pl-11 pr-4 text-white text-sm transition-all appearance-none cursor-pointer"
+                >
+                  <option value="">-- Elige tu profesor --</option>
+                  {profesores.length === 0 ? (
+                    <option value="" disabled>No hay profesores registrados</option>
+                  ) : (
+                    profesores.map(prof => (
+                      <option key={prof.id} value={prof.id}>{prof.pseudonimo} ({prof.correo})</option>
+                    ))
+                  )}
+                </select>
+              </div>
+              <p className="text-[11px] text-gray-400 italic">
+                * Tu profesor podrá ver tu progreso y evaluaciones.
+              </p>
             </div>
           )}
 

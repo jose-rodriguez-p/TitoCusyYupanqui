@@ -3,6 +3,7 @@ export interface PerfilUsuario {
   correo: string;
   pseudonimo: string;
   rol: 'estudiante' | 'docente' | 'administrador';
+  docente_id?: string | null; // ID del profesor asignado (solo para estudiantes)
   xp: number;
   nivel: number;
   racha: number;

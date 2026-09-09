@@ -112,7 +112,7 @@ class LocalDB {
     localStorage.setItem(key, JSON.stringify(data));
   }
 
-  async signUp(email: string, password: string, rol: 'estudiante' | 'docente', name?: string): Promise<{ data: any; error: any }> {
+  async signUp(email: string, password: string, rol: 'estudiante' | 'docente', name?: string, docenteId?: string): Promise<{ data: any; error: any }> {
     const users = this.get<any>('om_users');
     if (users.find(u => u.email === email)) {
       return { data: null, error: { message: 'El correo electrónico ya está registrado.' } };
@@ -138,6 +138,7 @@ class LocalDB {
       correo: email,
       pseudonimo,
       rol,
+      docente_id: rol === 'estudiante' ? (docenteId || null) : null,
       xp: 0,
       nivel: 1,
       racha: 0,
@@ -310,6 +311,11 @@ class LocalDB {
   async getAllEvaluations(): Promise<EvaluacionDocente[]> {
     return this.get<EvaluacionDocente>('om_evaluaciones');
   }
+
+  async getAllTeachers(): Promise<PerfilUsuario[]> {
+    const profiles = this.get<PerfilUsuario>('om_profiles');
+    return profiles.filter(p => p.rol === 'docente');
+  }
 }
 
 const localDBInstance = new LocalDB();
@@ -322,7 +328,7 @@ const local = localDBInstance;
 // ============================================================================
 export const db = {
   // Autenticación
-  signUp: async (email: string, password: string, rol: 'estudiante' | 'docente', name?: string) => {
+  signUp: async (email: string, password: string, rol: 'estudiante' | 'docente', name?: string, docenteId?: string) => {
     const emailNormalizado = email.trim().replace(/[\u200B-\u200D\uFEFF]/g, '').toLowerCase();
     if (supabase) {
       // Supabase Auth
@@ -330,7 +336,7 @@ export const db = {
         email: emailNormalizado,
         password,
         options: {
-          data: { rol, name }
+          data: { rol, name, docenteId }
         }
       });
       if (authError) {
@@ -351,7 +357,7 @@ export const db = {
       }
       return { data: { user: authData.user, profile }, error: null };
     } else {
-      return local.signUp(emailNormalizado, password, rol, name);
+      return local.signUp(emailNormalizado, password, rol, name, docenteId);
     }
   },
 
@@ -571,6 +577,32 @@ export const db = {
       return data || [];
     } else {
       return local.getAllEvaluations();
+    }
+  },
+
+  getAllTeachers: async (): Promise<PerfilUsuario[]> => {
+    if (supabase) {
+      const { data } = await supabase
+        .from('perfiles_usuarios')
+        .select('*')
+        .eq('rol', 'docente');
+      return data || [];
+    } else {
+      return localDBInstance.getAllTeachers();
+    }
+  },
+
+  getStudentsByTeacher: async (teacherId: string): Promise<PerfilUsuario[]> => {
+    if (supabase) {
+      const { data } = await supabase
+        .from('perfiles_usuarios')
+        .select('*')
+        .eq('rol', 'estudiante')
+        .eq('docente_id', teacherId);
+      return data || [];
+    } else {
+      const all = await localDBInstance.getAllProfiles();
+      return all.filter(p => p.rol === 'estudiante' && p.docente_id === teacherId);
     }
   }
 };
