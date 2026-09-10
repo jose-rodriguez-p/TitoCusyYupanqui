@@ -1,8 +1,14 @@
 import { PerfilUsuario, SesionEntrenamiento, MetricaMinijuego, EvaluacionDocente } from './types';
 import localSeed from '../database/data.json';
+import { createClient } from '@supabase/supabase-js';
 
-// El prototipo usa exclusivamente el almacenamiento local del navegador.
-export const supabase: any = null;
+// Configuración de Supabase para guardar datos en la nube
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+export const supabase = supabaseUrl && supabaseKey 
+  ? createClient(supabaseUrl, supabaseKey)
+  : null;
 
 const traducirErrorAutenticacion = (mensaje?: string): string => {
   const error = (mensaje || '').toLowerCase();

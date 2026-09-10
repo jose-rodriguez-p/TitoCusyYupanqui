@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS public.perfiles_usuarios (
     correo VARCHAR(255) NOT NULL,
     pseudonimo VARCHAR(50) UNIQUE NOT NULL, -- Seudónimo anónimo (ej: EST-2026-0001) para TDAH y anonimato escolar
     rol VARCHAR(20) NOT NULL DEFAULT 'estudiante' CHECK (rol IN ('estudiante', 'docente', 'administrador')),
+    docente_id UUID REFERENCES public.perfiles_usuarios(id) ON DELETE SET NULL, -- ID del profesor asignado (solo para estudiantes)
     xp INTEGER NOT NULL DEFAULT 0 CHECK (xp >= 0),
     nivel INTEGER NOT NULL DEFAULT 1 CHECK (nivel >= 1),
     racha INTEGER NOT NULL DEFAULT 0 CHECK (racha >= 0),
@@ -142,8 +143,10 @@ DECLARE
     new_pseudonimo VARCHAR(50);
     user_count INTEGER;
     assigned_rol VARCHAR(20);
+    assigned_docente_id UUID;
 BEGIN
     assigned_rol := COALESCE(NEW.raw_user_meta_data->>'rol', 'estudiante');
+    assigned_docente_id := NEW.raw_user_meta_data->>'docenteId';
     
     IF assigned_rol = 'estudiante' THEN
         SELECT COALESCE(COUNT(*), 0) + 1 INTO user_count FROM public.perfiles_usuarios WHERE rol = 'estudiante';
@@ -152,12 +155,13 @@ BEGIN
         new_pseudonimo := COALESCE(NEW.raw_user_meta_data->>'name', 'USER-' || SUBSTRING(NEW.id::text FROM 1 FOR 8));
     END IF;
 
-    INSERT INTO public.perfiles_usuarios (id, correo, pseudonimo, rol, xp, nivel, racha)
+    INSERT INTO public.perfiles_usuarios (id, correo, pseudonimo, rol, docente_id, xp, nivel, racha)
     VALUES (
         NEW.id,
         NEW.email,
         new_pseudonimo,
         assigned_rol,
+        assigned_docente_id,
         0,
         1,
         0
@@ -374,8 +378,10 @@ GRANT EXECUTE ON FUNCTION public.get_my_role() TO authenticated;
 DROP POLICY IF EXISTS "Permitir lectura de perfil propio" ON public.perfiles_usuarios;
 DROP POLICY IF EXISTS "Permitir a docentes/admin ver perfiles" ON public.perfiles_usuarios;
 DROP POLICY IF EXISTS "Permitir actualización de perfil propio" ON public.perfiles_usuarios;
+DROP POLICY IF EXISTS "Permitir ver lista de profesores para registro" ON public.perfiles_usuarios;
 CREATE POLICY "Permitir lectura de perfil propio" ON public.perfiles_usuarios FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Permitir a docentes/admin ver perfiles" ON public.perfiles_usuarios FOR SELECT USING (public.get_my_role() IN ('docente', 'administrador'));
+CREATE POLICY "Permitir ver lista de profesores para registro" ON public.perfiles_usuarios FOR SELECT USING (rol = 'docente');
 CREATE POLICY "Permitir actualización de perfil propio" ON public.perfiles_usuarios FOR UPDATE USING (auth.uid() = id);
 
 -- 10.2 Políticas para sesiones_entrenamiento
